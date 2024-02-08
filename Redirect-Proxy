@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@ensdomains/ens-contracts/contracts/resolvers/PublicResolver.sol";
+
+contract RedirectProxy is PublicResolver, AccessControl {
+    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+    address public targetAddress;
+
+    // events
+    event TargetAddressUpdated(address indexed previousTargetAddress, address indexed newTargetAddress);
+    event AddressSet(bytes32 indexed node, address indexed addr, address indexed sender);
+
+    constructor(ENS _ens, address _targetAddress) PublicResolver(_ens) {
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _setupRole(ADMIN_ROLE, msg.sender);
+        targetAddress = _targetAddress;
+    }
+
+    // set address
+    function setAddress(bytes32 node, address addr) public override {
+        require(hasRole(ADMIN_ROLE, msg.sender), "RedirectProxy: Caller does not have the ADMIN_ROLE");
+        super.setAddress(node, addr);
+        emit AddressSet(node, addr, msg.sender); // event emission
+    }
+
+    // update target address
+    function updateTargetAddress(address _newTargetAddress) public {
+        require(hasRole(ADMIN_ROLE, msg.sender), "RedirectProxy: Caller does not have the ADMIN_ROLE");
+        emit TargetAddressUpdated(targetAddress, _newTargetAddress); // event emission
+        targetAddress = _newTargetAddress;
+    }
+
+    // role management
+    function grantAdminRole(address account) public {
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "RedirectProxy: Caller is not a default admin");
+        grantRole(ADMIN_ROLE, account);
+    }
+
+    function revokeAdminRole(address account) public {
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "RedirectProxy: Caller is not a default admin");
+        revokeRole(ADMIN_ROLE, account);
+    }
+}
